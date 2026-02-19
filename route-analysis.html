@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wex-banquet-root Route Analysis</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --text-bright: #f0f6fc;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --purple: #bc8cff;
+    --red: #f85149;
+    --gray: #6e7681;
+    --cyan: #39d2c0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .app {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+  }
+  .header .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .header .stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .stat .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .stat .count {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* Toolbar */
+  .toolbar {
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: var(--text);
+    font-size: 13px;
+    width: 280px;
+    outline: none;
+  }
+  .search-box:focus {
+    border-color: var(--blue);
+  }
+  .search-box::placeholder {
+    color: var(--gray);
+  }
+  .filter-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .filter-btn:hover { border-color: var(--text-muted); }
+  .filter-btn.active {
+    background: rgba(88,166,255,0.1);
+    border-color: var(--blue);
+    color: var(--blue);
+  }
+  .view-toggle {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+  .view-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .view-btn.active {
+    background: rgba(88,166,255,0.15);
+    border-color: var(--blue);
+    color: var(--blue);
+  }
+
+  /* Main */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    overflow: hidden;
+  }
+
+  /* Tree panel */
+  .tree-panel {
+    overflow-y: auto;
+    padding: 16px 24px;
+  }
+
+  .domain-section {
+    margin-bottom: 20px;
+  }
+  .domain-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 2px;
+    transition: background 0.15s;
+  }
+  .domain-header:hover {
+    background: var(--surface2);
+  }
+  .domain-header .chevron {
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+    width: 14px;
+    text-align: center;
+  }
+  .domain-header.expanded .chevron {
+    transform: rotate(90deg);
+  }
+  .domain-header .path {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+  .domain-header .badge {
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    margin-left: auto;
+  }
+
+  .domain-children {
+    display: none;
+    margin-left: 20px;
+    border-left: 1px solid var(--border);
+    padding-left: 0;
+  }
+  .domain-children.visible {
+    display: block;
+  }
+
+  /* Route node */
+  .route-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px 7px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s;
+    position: relative;
+  }
+  .route-node::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+    background: var(--border);
+  }
+  .route-node:hover {
+    background: rgba(88,166,255,0.06);
+  }
+  .route-node.selected {
+    background: rgba(88,166,255,0.1);
+  }
+  .route-node.search-match {
+    background: rgba(210,153,34,0.12);
+  }
+  .route-node.hidden {
+    display: none;
+  }
+  .route-node .type-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .route-node .spa-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .route-node .route-path {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .route-node .tags-container {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .route-node .tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .tag-ff {
+    background: rgba(210,153,34,0.15);
+    color: var(--orange);
+    border: 1px solid rgba(210,153,34,0.3);
+  }
+  .tag-guard {
+    background: rgba(188,140,255,0.15);
+    color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.3);
+  }
+  .tag-conditional {
+    background: rgba(57,210,192,0.15);
+    color: var(--cyan);
+    border: 1px solid rgba(57,210,192,0.3);
+  }
+  .tag-dev {
+    background: rgba(110,118,129,0.15);
+    color: var(--gray);
+    border: 1px solid rgba(110,118,129,0.3);
+  }
+  .tag-redirect {
+    background: rgba(248,81,73,0.15);
+    color: var(--red);
+    border: 1px solid rgba(248,81,73,0.3);
+  }
+  .tag-ff-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10px;
+    padding: 1px 8px;
+    border-radius: 4px;
+    background: rgba(210,153,34,0.12);
+    border: 1px solid rgba(210,153,34,0.25);
+    color: var(--orange);
+    white-space: nowrap;
+    cursor: help;
+  }
+  .tag-ff-name:hover {
+    background: rgba(210,153,34,0.2);
+    border-color: rgba(210,153,34,0.4);
+  }
+
+  /* Subsection headers */
+  .subsection {
+    padding: 6px 12px 4px 16px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    position: relative;
+  }
+  .subsection::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Detail panel */
+  .detail-panel {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    padding: 20px;
+  }
+  .detail-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 40px;
+    line-height: 1.6;
+  }
+  .detail-header {
+    margin-bottom: 20px;
+  }
+  .detail-header .spa-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-bright);
+    word-break: break-all;
+  }
+  .detail-header .spa-type {
+    font-size: 12px;
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .detail-section {
+    margin-bottom: 16px;
+  }
+  .detail-section h3 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .detail-routes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .detail-route {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    padding: 4px 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    color: var(--text);
+    word-break: break-all;
+  }
+  .detail-info {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .detail-info code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--orange);
+  }
+  .detail-label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .detail-value {
+    font-size: 13px;
+    color: var(--text);
+    margin-top: 2px;
+  }
+  .detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+  .detail-exclusions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .exclusion-item {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.15);
+    border-radius: 4px;
+    color: var(--red);
+  }
+  .detail-file {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--blue);
+    cursor: default;
+  }
+
+  /* Graph view */
+  .graph-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  .graph-container svg {
+    width: 100%;
+    height: 100%;
+  }
+  .graph-node circle {
+    cursor: pointer;
+    transition: r 0.2s;
+  }
+  .graph-node:hover circle {
+    r: 10;
+  }
+  .graph-node text {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10px;
+    fill: var(--text);
+    pointer-events: none;
+  }
+  .graph-link {
+    stroke: var(--border);
+    stroke-width: 1;
+    fill: none;
+  }
+
+  /* Child routes */
+  .child-routes-section {
+    margin-top: 16px;
+  }
+  .child-routes-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+  .child-routes-header:hover { color: var(--text); }
+  .child-routes-header .chevron {
+    font-size: 8px;
+    transition: transform 0.2s;
+  }
+  .child-routes-header.expanded .chevron {
+    transform: rotate(90deg);
+  }
+  .child-routes-header .source-badge {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(240,136,62,0.12);
+    color: #f0883e;
+    border: 1px solid rgba(240,136,62,0.25);
+    margin-left: auto;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+  .child-routes-list {
+    display: none;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+  }
+  .child-routes-list.visible {
+    display: block;
+  }
+  .child-route-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    padding: 5px 10px;
+    font-size: 11px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+  .child-route-row:last-child { border-bottom: none; }
+  .child-route-row:hover { background: rgba(88,166,255,0.04); }
+  .child-route-row.search-highlight { background: rgba(210,153,34,0.1); }
+  .child-route-path {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .child-route-arrow {
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+  .child-route-spa {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--cyan);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .child-route-meta {
+    display: flex;
+    gap: 4px;
+    margin-top: 1px;
+  }
+  .child-route-row .tag {
+    font-size: 9px;
+    padding: 0 4px;
+  }
+
+  /* Expand button on tree nodes */
+  .expand-child-btn {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(240,136,62,0.12);
+    color: #f0883e;
+    border: 1px solid rgba(240,136,62,0.2);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .expand-child-btn:hover {
+    background: rgba(240,136,62,0.2);
+  }
+  .child-routes-inline {
+    display: none;
+    margin-left: 36px;
+    border-left: 1px dashed rgba(240,136,62,0.3);
+    padding-left: 12px;
+    margin-top: 2px;
+    margin-bottom: 4px;
+  }
+  .child-routes-inline.visible { display: block; }
+  .child-route-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 10px;
+  }
+  .child-route-inline .crpath {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--text-muted);
+  }
+  .child-route-inline .crspa {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--cyan);
+    font-size: 10px;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>wex-banquet-root &mdash; Route Analysis</h1>
+    <div class="subtitle">single-spa micro-frontend route map &bull; 34 root SPAs &bull; 150+ internal routes &bull; 5 route domains &bull; data from Sourcegraph</div>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div class="toolbar">
+    <input type="text" class="search-box" id="search" placeholder="Search routes or SPA names..." autocomplete="off" />
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="layout">Layouts</button>
+    <button class="filter-btn" data-filter="widget">Widgets</button>
+    <button class="filter-btn" data-filter="ff">Feature-flagged</button>
+    <button class="filter-btn" data-filter="guarded">Guarded</button>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="tree">Tree</button>
+      <button class="view-btn" data-view="graph">Graph</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="tree-panel" id="treePanel"></div>
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-empty">Click any SPA node to view registration details, routes, guards, and feature flags.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const spaData = [
+  // ---- /restaurants/admin domain ----
+  {
+    name: 'restaurant-admin-layout',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/*'],
+    regOrder: 1,
+    file: 'src/registration/restaurant-admin.ts:59',
+    description: 'Main layout SPA for the restaurant admin area. Renders the primary page content for most admin routes.',
+    exclusions: ['/restaurants/admin/home', '/restaurants/admin/tipConfig', '/restaurants/admin/sites*', '/restaurants/admin/branded-online-ordering', '/restaurants/admin/toast-local', '/restaurants/admin/order-with-google', '/restaurants/admin/google-management', '/restaurants/admin/oo-flyer', '/restaurants/admin/menus/manager (when FF active)'],
+    guard: 'data-banquet-restaurant-admin body attribute required',
+  },
+  {
+    name: 'restaurant-home-page-layout',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/home'],
+    regOrder: 2,
+    file: 'src/registration/restaurant-home-page.ts:33',
+    description: 'Home/dashboard page for restaurant admin. Conditionally replaced by onboarding-setup-page-spa for eligible restaurants.',
+    guard: 'Only when NOT in test mode / NOT setup eligible',
+    conditional: 'onboarding-setup-page-spa',
+  },
+  {
+    name: 'onboarding-setup-page-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/home'],
+    regOrder: 2,
+    file: 'src/registration/restaurant-home-page.ts:25',
+    description: 'Replaces the home page for restaurants in test mode that are setup-eligible and not MLM.',
+    guard: 'isTestModeEnabled && isSetupPageEligible && !multiLocationManagementEnabled',
+    conditional: 'restaurant-home-page-layout',
+  },
+  {
+    name: 'menu-price-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/menus/manager'],
+    regOrder: 3,
+    file: 'src/registration/menu-price-spa.ts:27',
+    description: 'Menu pricing manager. Spun out from restaurant-admin-layout to be served directly from wex-root.',
+    featureFlag: 'menu-price-spa-rendered-from-wex-root',
+  },
+  {
+    name: 'tip-config',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/tipConfig*'],
+    regOrder: 4,
+    file: 'src/registration/restaurant-admin.ts:249',
+    description: 'Tip pooling policy configuration SPA.',
+  },
+  {
+    name: 'advanced-properties-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/advancedproperties/bulkeditor'],
+    regOrder: 5,
+    file: 'src/registration/restaurant-admin.ts:262',
+    description: 'Advanced properties bulk editor.',
+    featureFlag: 'mlx-advanced-properties-guardrails',
+  },
+  {
+    name: 'user-content-translations-spa',
+    type: 'widget',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/*menus*', '/restaurants/admin/*kiosk*'],
+    regOrder: 6,
+    file: 'src/registration/restaurant-admin.ts:276',
+    description: 'Internationalization widget for translating user content on menu and kiosk pages.',
+    featureFlag: 'intl-user-content-translations',
+  },
+  {
+    name: 'gmb-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/basicinfo'],
+    regOrder: 7,
+    file: 'src/registration/restaurant-admin.ts:292',
+    description: 'Google My Business integration SPA, embedded in the basic info page.',
+  },
+  {
+    name: 'scheduled-banner-spa',
+    type: 'widget',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/menus/menuitem*'],
+    regOrder: 8,
+    file: 'src/registration/restaurant-admin.ts:307',
+    description: 'Scheduled banner widget shown on menu item edit pages.',
+    featureFlag: 'advm-adv-props-in-price-editor',
+  },
+  {
+    name: 'gfo-validation-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/onlineordering'],
+    regOrder: 9,
+    file: 'src/registration/restaurant-admin.ts:318',
+    description: 'Guest Funded Offers validation SPA for online ordering configuration.',
+  },
+  {
+    name: 'break-adherence-spa',
+    type: 'widget',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/reports/home#labor-break-adherence'],
+    regOrder: 10,
+    file: 'src/registration/restaurant-admin.ts:328',
+    description: 'Labor break adherence widget. Mounts into a deferred DOM element on the reports home page.',
+    guard: 'Requires hash #labor-break-adherence',
+  },
+  {
+    name: 'reporting-runtime',
+    type: 'runtime',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/reports', '/restaurants/admin/reporting', '/restaurants/admin/takeout-delivery-dashboard'],
+    regOrder: 11,
+    file: 'src/registration/restaurant-admin.ts:230',
+    description: 'Reporting runtime module providing shared reporting infrastructure.',
+  },
+  {
+    name: 'marketing-suite-widget-spa',
+    type: 'widget',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/guest/homepage', '/restaurants/admin/marketing/*', '/restaurants/admin/sites/app', '/restaurants/admin/reports/guest', '/restaurants/admin/crm/guestbook', '/restaurants/admin/sms-marketing*'],
+    regOrder: 12,
+    file: 'src/registration/restaurant-admin.ts:349',
+    description: 'Marketing suite widget providing email campaign builder, automations, and guest marketing features.',
+    featureFlag: 'msg-marketing-suite-widget-spa',
+  },
+  {
+    name: 'selection-fulfillment-spa',
+    type: 'widget',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/menus/menuoption*'],
+    regOrder: 13,
+    file: 'src/registration/restaurant-admin.ts:391',
+    description: 'Selection fulfillment mapping widget on menu option pages.',
+    featureFlag: 'ent-enable-selection-fulfillment-mapping',
+  },
+  // ---- Sites sub-domain ----
+  {
+    name: 'toast-sites-admin-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    subdomain: 'sites',
+    routes: ['/restaurants/admin/sites*', '/restaurants/admin/branded-online-ordering', '/restaurants/admin/toast-local', '/restaurants/admin/order-with-google', '/restaurants/admin/google-management', '/restaurants/admin/oo-flyer'],
+    regOrder: 14,
+    file: 'src/registration/sites.ts:75',
+    description: 'Toast Websites, Online Ordering Pro, and related pages. When branded-app or marketing-hub flags are on, those specific paths are carved out.',
+    exclusions: ['/restaurants/admin/sites/app (when FF oo-branded-app-admin)', '/restaurants/admin/sites/marketing-hub (when FF oo-marketing-hub)'],
+  },
+  {
+    name: 'branded-app-admin-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    subdomain: 'sites',
+    routes: ['/restaurants/admin/sites/app', '/restaurants/admin/sites/app/editor'],
+    regOrder: 15,
+    file: 'src/registration/sites.ts:60',
+    description: 'Branded mobile app administration. Carved out from toast-sites-admin-spa.',
+    featureFlag: 'oo-branded-app-admin',
+  },
+  {
+    name: 'ds-marketing-hub-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    subdomain: 'sites',
+    routes: ['/restaurants/admin/sites/marketing-hub*'],
+    regOrder: 16,
+    file: 'src/registration/sites.ts:67',
+    description: 'Marketing hub for online ordering. Carved out from toast-sites-admin-spa.',
+    featureFlag: 'oo-marketing-hub',
+  },
+  // ---- Ecomm ----
+  {
+    name: 'ecomm-shop-spa',
+    type: 'layout',
+    domain: '/customers/shop',
+    routes: ['/customers/shop*'],
+    regOrder: 17,
+    file: 'src/registration/ecomm.ts:24',
+    description: 'Customer-facing e-commerce shop SPA.',
+  },
+  {
+    name: 'ecomm-discovery-spa',
+    type: 'layout',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/discovery*'],
+    regOrder: 18,
+    file: 'src/registration/ecomm.ts:31',
+    description: 'E-commerce Discovery Hub v2 for restaurant admins.',
+    featureFlag: 'ecomm-disco-hub-v2',
+  },
+  // ---- Toast Admin ----
+  {
+    name: 'spa-toast-administration',
+    type: 'layout',
+    domain: '/toast/admin',
+    routes: ['/toast/admin*'],
+    regOrder: 19,
+    file: 'src/registration/toast-admin.ts:8',
+    description: 'Toast internal administration panel.',
+  },
+  // ---- Onboarding ----
+  {
+    name: 'third-party-ordering-onboarding-spa',
+    type: 'layout',
+    domain: '/onboarding',
+    routes: ['/onboarding/ordering-integrations'],
+    regOrder: 20,
+    file: 'src/registration/onboarding-admin.ts:6',
+    description: 'Third-party ordering (3PO) onboarding flow.',
+  },
+  {
+    name: 'tds-onboarding-spa',
+    type: 'layout',
+    domain: '/onboarding',
+    routes: ['/onboarding/toast-delivery-service'],
+    regOrder: 21,
+    file: 'src/registration/onboarding-admin.ts:13',
+    description: 'Toast Delivery Service onboarding flow.',
+  },
+  // ---- Settings ----
+  {
+    name: 'spa-settings-management-layout',
+    type: 'layout',
+    domain: '/settings',
+    routes: ['/settings'],
+    regOrder: 22,
+    file: 'src/registration/settings.ts:9',
+    description: 'Settings management layout SPA.',
+  },
+  // ---- Global Widgets ----
+  {
+    name: 'navigation-layout-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['Most routes (see exclusions)'],
+    regOrder: 23,
+    file: 'src/registration/restaurant-admin.ts:93',
+    description: 'Left navigation rail. Active on most pages except certain domains.',
+    exclusions: ['/toast/admin*', '/customers/shop*', '/onboarding/ordering-integrations', '/onboarding/toast-delivery-service', '/settings'],
+    guard: 'Not mounted on Toast Mobile (ToastEmbedded user agent)',
+  },
+  {
+    name: 'sous-chef-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['Most routes (see exclusions)'],
+    regOrder: 24,
+    file: 'src/registration/sous-chef-spa.ts:24',
+    description: 'Toast IQ (Sous Chef) AI assistant widget.',
+    featureFlag: 'plg-1027-sous-chef-mounting',
+    exclusions: ['/toast/admin*', '/customers/shop*', '/onboarding/ordering-integrations', '/onboarding/toast-delivery-service', '/settings'],
+  },
+  {
+    name: 'ai-chat-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['/restaurants/admin*'],
+    regOrder: 25,
+    file: 'src/registration/ai-chatbot.ts:19',
+    description: 'AI chatbot widget. Toast-internal only.',
+    featureFlag: 'ds-2557-surface-ai-chat-bot',
+    guard: 'Toast internal user role required',
+  },
+  {
+    name: 'toast-onboarding-checklist-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['Same as navigation-layout-spa'],
+    regOrder: 26,
+    file: 'src/registration/restaurant-admin.ts:106',
+    description: 'Onboarding checklist overlay guiding new restaurants through setup.',
+    guard: 'binaryCustomerPermissions includes "1"',
+    exclusions: ['/toast/admin*', '/customers/shop*', '/onboarding/*', '/settings'],
+  },
+  {
+    name: 'popup-notifications-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['Same as navigation-layout-spa'],
+    regOrder: 27,
+    file: 'src/registration/restaurant-admin.ts:146',
+    description: 'Popup notification toasts (non-blocking alerts).',
+    exclusions: ['/toast/admin*', '/customers/shop*', '/onboarding/*', '/settings'],
+  },
+  {
+    name: 'restaurant-footer-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['/restaurants/admin*'],
+    regOrder: 28,
+    file: 'src/registration/restaurant-admin.ts:160',
+    description: 'Footer widget for restaurant admin pages.',
+    exclusions: ['/restaurants/admin/*/retail*', '/restaurants/admin/configchangesv2'],
+    guard: 'Not mounted on Toast Mobile (ToastEmbedded user agent)',
+  },
+  {
+    name: 'restaurant-select-dialog-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['/restaurants/admin/reports', '/restaurants/admin/reporting', '/restaurants/admin/menus*', '/restaurants/admin/capital', '/restaurants/admin/groups', '/restaurants/admin/settings-copy', '/restaurants/admin/invoices', '/restaurants/admin/labor', '/restaurants/admin/employees', '/restaurants/admin/schedules', '/restaurants/admin/packaging-config', '/restaurants/admin/orderconfirmationscreen', '/restaurants/admin/digitalmenuboard', '/restaurants/admin/fundraising', '/restaurants/admin/publishing/history', '/restaurants/admin/data-extensions', '/restaurants/admin/rate-change', '/restaurants/admin/toast-account/pricing-updates', '/restaurants/admin/devices', '/restaurants/admin/ui-options', '/restaurants/admin/kitchen/assembly-lines', '/toast/admin/versions/posappversions', '/restaurants/admin/insights', '/restaurants/admin/cases', '/restaurants/admin/breaks/config', '/restaurants/admin/customerfacingdisplay', '/restaurants/admin/integrations', '/customers/shop*', '/restaurants/admin/crm*', '/retail*'],
+    regOrder: 29,
+    file: 'src/registration/restaurant-admin.ts:182',
+    description: 'Multi-restaurant location selector dialog. Active on 30+ route paths across multiple domains.',
+  },
+  {
+    name: 'rra-subnav-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['/restaurants/admin/reports*', '/restaurants/admin/reporting*'],
+    regOrder: 30,
+    file: 'src/registration/restaurant-admin.ts:118',
+    description: 'Secondary subnav for analytics/reporting/legacy pages.',
+  },
+  {
+    name: 'intl-quebec-compliance-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['Any route (meta tag gated)'],
+    regOrder: 31,
+    file: 'src/registration/restaurant-admin.ts:129',
+    description: 'Quebec compliance warning widget. Only mounts when a specific meta tag is present in the DOM.',
+    guard: 'meta[name="intl-quebec-compliance-blocked-path"] must exist',
+  },
+  {
+    name: 'medallia-survey-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['/restaurants/admin*'],
+    regOrder: 32,
+    file: 'src/registration/medallia-spa.ts:6',
+    description: 'Medallia customer satisfaction survey widget.',
+    guard: 'External users only (!isInternalUser)',
+  },
+  {
+    name: 'restaurant-admin-header-notifications-spa',
+    type: 'widget',
+    domain: 'global',
+    routes: ['/restaurants/admin/home'],
+    regOrder: 33,
+    file: 'src/registration/header-notifications.ts:10',
+    description: 'Header notification badges on the admin home page.',
+  },
+  // ---- Dev Tools ----
+  {
+    name: 'spa-dev-tools',
+    type: 'devtool',
+    domain: 'global',
+    routes: ['All routes (non-production only)'],
+    regOrder: 34,
+    file: 'src/registration/dev-tools.ts:13',
+    description: 'Developer tools widget. Only registered in non-production environments.',
+    guard: 'Non-production environments only',
+  },
+  // ---- Redirect ----
+  {
+    name: '/restaurants/admin/iq → /restaurants/admin/home',
+    type: 'redirect',
+    domain: '/restaurants/admin',
+    routes: ['/restaurants/admin/iq'],
+    regOrder: 0,
+    file: 'src/registration/restaurant-admin.ts:34',
+    description: 'Redirects the old IQ route to the home page. Sets toast-iq-view-state=fullscreen in sessionStorage before redirecting.',
+    redirectTo: '/restaurants/admin/home',
+  }
+];
+
+// ============================================================
+// CHILD ROUTES (from Sourcegraph - internal SPA routing)
+// ============================================================
+const childRouteData = {
+  'restaurant-admin-layout': {
+    source: 'restaurant-admin-layout/packages/app/App/useChildSpaRoutes.ts',
+    routes: [
+      { path: '/3po-onboarding-tools', spa: 'tpo-onboarding-debug-spa', flag: '3pod-3po-enable-3po-onboarding-tools', guard: 'Tier2 Support + Toast user' },
+      { path: '/accounting-activity/*', spa: 'accounting-overview-spa' },
+      { path: '/accounting-connections/*', spa: 'accounting-connections-spa' },
+      { path: '/accounting-settings/*', spa: 'accounting-settings-spa' },
+      { path: '/accounts-payable-assignments/*', spa: 'accounting-ap-assignments-spa' },
+      { path: '/ads/*', spa: 'ads-platform-spa' },
+      { path: '/analytics/home/*', spa: 'analytics-ui' },
+      { path: '/analytics/home/reporting-essentials', spa: 'analytics-spa' },
+      { path: '/api-access/*', spa: 'tpc-customer-api-access-spa' },
+      { path: '/attribution', spa: 'attribution-reporting-spa' },
+      { path: '/basicinfo/*', spa: 'rx-general-info-spa', flag: 'nv1-new-restaurant-info' },
+      { path: '/billpay/*', spa: 'billpay-spa', flag: 'sa-billpay-enable-billpay-spa' },
+      { path: '/booking/config/*', spa: 'capman-mgmt-portal-ui' },
+      { path: '/brand/*', spa: 'brand-hub-spa', flag: 'msg-brand-hub-spa' },
+      { path: '/breaks/config/*', spa: 'break-config-spa', flag: 'smx-advanced-break-configs' },
+      { path: '/business-insurance/*', spa: 'business-insurance-spa' },
+      { path: '/capital/*', spa: 'capital-customer-spa' },
+      { path: '/cases/*', spa: 'help-center-spa', flag: 'hlp-help-center-rollout' },
+      { path: '/cash-config/cash-rounding/*', spa: 'cash-config-spa', flag: 'pwf-6039-cash-rounding-config-spa' },
+      { path: '/cash-overview/*', spa: 'close-out-config-spa', flag: 'cac-close-out-config-spa-cash-overview' },
+      { path: '/catering/*', spa: 'invoice-admin-web' },
+      { path: '/channel-config/*', spa: 'channel-config-spa' },
+      { path: '/channel-debug', spa: 'channel-debug-spa', flag: '3pod-3po-enable-channel-debug-spa', guard: 'CHANNEL_ADMIN + Toast user' },
+      { path: '/codelab/*', spa: 'new-engineer-codelab-spa' },
+      { path: '/compcards/setup', spa: 'comp-card-setup' },
+      { path: '/contests/*', spa: 'employee-contests-spa', flag: 'eedev-contests-v1' },
+      { path: '/credit-card/*', spa: 'high-yield-account-spa' },
+      { path: '/crm', spa: 'guestbook-report-spa' },
+      { path: '/crm/guest-feedback/*', spa: 'guest-feedback-management-spa' },
+      { path: '/crm/guest-feedback/menu-item-settings/*', spa: 'menu-item-feedback-config-spa' },
+      { path: '/crm/guest-feedback/menu-item/*', spa: 'menu-item-feedback-reporting-spa' },
+      { path: '/crm/guest-insights/*', spa: 'customer-insights-spa' },
+      { path: '/crm/guest-segments', spa: 'guestbook-report-spa' },
+      { path: '/crm/guestbook/*', spa: 'guestbook-report-spa' },
+      { path: '/customerfacingdisplay/*', spa: 'gfd-config-spa' },
+      { path: '/data-extensions/*', spa: 'data-extensions-spa', guard: 'DATA_EXTENSIONS permissions' },
+      { path: '/devices/*', spa: 'device-hub-spa' },
+      { path: '/digitalmenuboard', spa: 'dmb-config-spa', flag: 'delphi-stock-config' },
+      { path: '/discover/*', spa: 'product-trial-spa' },
+      { path: '/ebt/', spa: 'ebt-config-spa', guard: 'US only + PAYMENTS_SETUP' },
+      { path: '/employee-card/*', spa: 'employee-card-spa', flag: 'ec-eem-employee-card-spa-show' },
+      { path: '/employee/skill-central/*', spa: 'growguide-professional-spa', flag: 'nvi-growguide' },
+      { path: '/employees/bulk-import/*', spa: 'employee-import-spa', flag: 'lpx-employee-import-spa', guard: 'Employee permissions' },
+      { path: '/employees/summary/*', spa: 'toast-employees-spa / spa-idm-restaurant-users', flag: 'ec-elm-new-employment-overview' },
+      { path: '/end-of-day/*', spa: 'close-out-config-spa', flag: 'cac-close-out-config-spa-shift-review' },
+      { path: '/entity-mapping/*', spa: 'entity-mapping-spa', flag: 'ent-en-1611-entity-mapping-ui' },
+      { path: '/excess-food/*', spa: 'excess-food-spa' },
+      { path: '/financial-insights/*', spa: 'financial-insights-spa', guard: 'FINANCIAL_ACCOUNTS' },
+      { path: '/financial-products/*', spa: 'finance-products-spa / financial-products-page-spa', flag: 'pmts-toast-capital-financial-products-page' },
+      { path: '/find-checks/*', spa: 'find-checks-spa' },
+      { path: '/fiscal/*', spa: 'fiscal-config-spa', flag: 'intl-fiscal-config-spa', guard: 'CA country only' },
+      { path: '/food-waste-config/*', spa: 'food-waste-config-spa', flag: 'dot-food-waste-config-spa' },
+      { path: '/food-waste/*', spa: 'excess-food-spa' },
+      { path: '/freedompay-config', spa: 'freedompay-merchant-info-spa', flag: 'crm-freedompay-restaurant' },
+      { path: '/fundraising/*', spa: 'fundraising-spa' },
+      { path: '/giftcards/configure/gift-receipts/*', spa: 'giftcard-receipt-config-spa', flag: 'gcs-gift-receipt-phase-0' },
+      { path: '/giftcards/setup/*', spa: 'giftcard-config-spa', flag: 'gcs-giftcard-config-v2' },
+      { path: '/graphql', spa: 'restaurant-graphql-playground', guard: 'Preprod/Dev only' },
+      { path: '/groups/*', spa: 'restaurant-groups-spa', flag: 'mlx-location-groups' },
+      { path: '/handle-orders-eod/*', spa: 'handle-orders-at-eod-spa', flag: 'ord-7028-show-handle-orders-at-eod-page' },
+      { path: '/high-yield-account/*', spa: 'high-yield-account-spa' },
+      { path: '/houseaccounts/*', spa: 'house-accounts-spa', flag: 'mship-6-house-accounts-v2-enabled' },
+      { path: '/insights/*', spa: 'rx-insights-spa' },
+      { path: '/instant-deposit/*', spa: 'instant-deposit-spa', guard: 'INSTANT_DEPOSIT' },
+      { path: '/integrations/*', spa: 'tpc-spa-my-integrations' },
+      { path: '/internal-tools/bank-accounts/*', spa: 'bank-accounts-admin-spa' },
+      { path: '/internal-tools/menu-audit', spa: 'menu-audit-ui', guard: 'MENU_AUDIT or Toast user' },
+      { path: '/internal-tools/order-audit/*', spa: 'order-audit-spa', flag: 'ord-audit-spa' },
+      { path: '/internal-tools/toastmenuimport', spa: 'menu-upload-ui', flag: 'cfg-menu-import-tool', guard: 'Toast user' },
+      { path: '/inventory/count-history/*', spa: 'inventory-smb' },
+      { path: '/inventory/count-lists/*', spa: 'inventory-smb' },
+      { path: '/inventory/homepage', spa: 'inventory-smb' },
+      { path: '/inventory/ingredient-library/*', spa: 'inventory-smb' },
+      { path: '/inventory/order-list/*', spa: 'inventory-smb' },
+      { path: '/inventory/ordering-receiving/*', spa: 'inventory-ordering-receiving-spa' },
+      { path: '/inventory/recipes/*', spa: 'global-inventory-recipes-spa' },
+      { path: '/inventory/reporting-avt/*', spa: 'inventory-reporting-avt-spa' },
+      { path: '/inventory/setup/*', spa: 'inventory-smb' },
+      { path: '/inventory/suppliers/*', spa: 'inventory-smb' },
+      { path: '/inventory/waste/*', spa: 'inventory-waste-spa' },
+      { path: '/invoices/*', spa: 'invoice-admin-web' },
+      { path: '/job-based-access-mgmt/*', spa: 'job-based-access-mgmt-spa', flag: 'lpx-job-based-access-spa' },
+      { path: '/jobs-and-permissions/*', spa: 'jobs-and-permissions-spa', flag: 'lpx-jobs-and-permissions-spa' },
+      { path: '/kiosk-v2/home/*', spa: 'kiosk-config-spa', flag: 'ksk-kiosk-config-spa' },
+      { path: '/kitchen/assembly-lines/*', spa: 'kitchen-assembly-line-spa', flag: 'ent-kitchen-assembly-line-ui' },
+      { path: '/kitchen/prep-stations/*', spa: 'prep-stations-spa' },
+      { path: '/knowledge/*', spa: 'help-center-spa', flag: 'hlp-help-center-rollout' },
+      { path: '/labor/*', spa: 'ec-labor-spa' },
+      { path: '/loc/*', spa: 'toast-loc-spa' },
+      { path: '/localSync/hubConfig/*', spa: 'master-config-ui', flag: 'ord-hub-config-ui-banquet-enable', guard: 'Toast user' },
+      { path: '/loyaltyprogram/*', spa: 'loyalty-config-web' },
+      { path: '/loyaltyprogram/import', spa: 'loyalty-import-tool', flag: 'loy-import-tool-page', guard: 'Toast user' },
+      { path: '/manager-log', spa: 'manager-logbook-spa', flag: 'opa-manager-log-spa' },
+      { path: '/manageractions/guestfeedback/*', spa: 'guest-feedback-details-spa' },
+      { path: '/marketing/assistant/*', spa: 'marketing-hub-sections-spa' },
+      { path: '/marketing/automations/*', spa: 'marketing-hub-sections-spa' },
+      { path: '/marketing/campaigns/*', spa: 'marketing-hub-sections-spa' },
+      { path: '/marketing/editor/*', spa: 'marketing-suite-widget-spa' },
+      { path: '/marketing/editor/email/*', spa: 'marketing-email-editor-spa' },
+      { path: '/marketing/template-gallery/*', spa: 'marketing-template-gallery-spa' },
+      { path: '/marketing/*', spa: 'email-marketing-spa' },
+      { path: '/menuitemreviews/*', spa: 'menu-item-feedback-config-spa' },
+      { path: '/menus/boba-setup/*', spa: 'boba-machine-qr-spa' },
+      { path: '/menus/bulk/*', spa: 'menu-bulk-spa' },
+      { path: '/menus/edit/*', spa: 'menu-crud-ui' },
+      { path: '/menus/edit/entity/timebased/*', spa: 'time-based-menu-rules-admin-spa', flag: 'oo-time-based-menu-rules-enabled' },
+      { path: '/menus/layout/point-of-sale/*', spa: 'menu-pos-web-view' },
+      { path: '/menus/manager/*', spa: 'menu-price-spa', flag: 'menu-price-spa-rendered-from-wex-root (inverted)' },
+      { path: '/menus/price/*', spa: 'menu-price-spa', flag: 'menu-price-spa-rendered-from-wex-root (inverted)' },
+      { path: '/network-management/*', spa: 'network-mgmt-spa' },
+      { path: '/offers/*', spa: 'offers-spa' },
+      { path: '/order-highlights/*', spa: 'order-audit-spa', flag: 'ord-audit-spa' },
+      { path: '/order-ready-display', spa: 'ord-config-spa' },
+      { path: '/orderandpay/*', spa: 'opt-onboarding' },
+      { path: '/orderconfirmationscreen/advanced/*', spa: 'ocs-config-spa' },
+      { path: '/orderconfirmationscreen/basic/*', spa: 'ocs-config-spa', flag: 'delphi-ocs-config' },
+      { path: '/orders-hub-communication', spa: 'orders-hub-communication-spa' },
+      { path: '/otherpayments/refund/*', spa: 'pocket-toast-spa' },
+      { path: '/packaging-config/*', spa: 'packaging-config-spa' },
+      { path: '/partner-digital-ordering-configs', spa: 'third-party-ordering-config-spa', flag: '3pod-3po-config-pages-rollout' },
+      { path: '/payments/chargebacks/*', spa: 'chargeback-mgmt-spa', flag: 'ptl-process-chargebacks' },
+      { path: '/payroll-assignments/*', spa: 'payroll-assignments-spa' },
+      { path: '/performance-center/*', spa: 'reporting-archived-spa' },
+      { path: '/plg-sandbox/*', spa: 'plg-sandbox-spa', guard: 'Preprod only' },
+      { path: '/privacyrequest', spa: 'privacy-request-spa' },
+      { path: '/products', spa: 'restaurant-products-spa', flag: 'plg-119-product-page' },
+      { path: '/prompt-admin/*', spa: 'doc-prompt-admin-spa', flag: 'nvr-dps-ops-management' },
+      { path: '/prompt-admin/vendor-prompt-management/*', spa: 'doc-vendor-prompt-management-spa', flag: 'nvr-dps-ops-management' },
+      { path: '/publishing/*', spa: 'pub-hub-spa', flag: 'rcp-pub-hub-spa' },
+      { path: '/rate-change', spa: 'rate-comparison-spa' },
+      { path: '/receipt-setup/*', spa: 'receipt-config-spa', flag: 'mlx-receipt-config' },
+      { path: '/reports/custom-reports/*', spa: 'reporting-spa' },
+      { path: '/reports/data-export/config/*', spa: 'data-export-config-spa' },
+      { path: '/reports/employee-performance/*', spa: 'employee-dev-reports-spa', flag: 'eedev-employee-productivity-v1' },
+      { path: '/reports/excess-food/*', spa: 'excess-food-reporting-spa' },
+      { path: '/reports/food-waste/*', spa: 'excess-food-reporting-spa' },
+      { path: '/reports/fundraising/*', spa: 'fundraising-reporting-spa' },
+      { path: '/reports/guest/*', spa: 'guestbook-report-spa' },
+      { path: '/reports/homepage', spa: 'reporting-homepage-spa' },
+      { path: '/reports/internal/*', spa: 'reporting-spa', guard: 'Toast user' },
+      { path: '/reports/internal/kitchen-topology', spa: 'kitchen-topology-report-spa', flag: 'ko-enable-topology-report' },
+      { path: '/reports/kitchen/kitchen-overview', spa: 'kitchen-topology-report-spa', flag: 'ko-enable-public-kitchen-topology-report' },
+      { path: '/reports/labor/*', spa: 'reporting-spa' },
+      { path: '/reports/location-overview/*', spa: 'reporting-spa' },
+      { path: '/reports/menu-item-reviews/*', spa: 'menu-item-feedback-reporting-spa' },
+      { path: '/reports/menu/*', spa: 'reporting-spa' },
+      { path: '/reports/new-landing-page', spa: 'reporting-homepage-spa' },
+      { path: '/reports/payments/*', spa: 'fintech-reporting-spa', guard: 'SALES_REPORTING' },
+      { path: '/reports/payments/uncaptured', spa: 'freedompay-uncaptured-report-spa', flag: 'crm-freedompay-restaurant + entp-enable-uncaptured-reporting' },
+      { path: '/reports/retail/*', spa: 'retail-reporting-spa' },
+      { path: '/reports/rewards-activity/*', spa: 'rewards-activity-spa', guard: 'MANAGER' },
+      { path: '/reports/sales/*', spa: 'reporting-spa' },
+      { path: '/reports/sales/marketing-driven-sales', spa: 'attribution-reporting-spa' },
+      { path: '/reports/sites/*', spa: 'sites-reports-spa' },
+      { path: '/reports/tip/*', spa: 'tip-reporting' },
+      { path: '/reports/tips-recovery-report/*', spa: 'tips-recovery-report-spa', guard: 'MANAGER' },
+      { path: '/reports/toastTables/*', spa: 'booking-report-spa' },
+      { path: '/reports/trends-analysis/*', spa: 'reporting-spa' },
+      { path: '/restaurant-jobs/*', spa: 'jobs-qr-phygital-spa', guard: 'Employee permissions' },
+      { path: '/restaurant-meals-program', spa: 'restaurant-meals-program-spa', flag: 'dot-restaurant-meals-program' },
+      { path: '/retail/*', spa: 'retail-spa' },
+      { path: '/sales-assignments/*', spa: 'sales-assignments-spa' },
+      { path: '/scantopay', spa: 'stp-onboarding' },
+      { path: '/schedules/*', spa: 'hours-services-spa', flag: 'hot-hours-services-spa' },
+      { path: '/scheduling/*', spa: 'scheduling-spa' },
+      { path: '/settings-copy/*', spa: 'config-copy-spa', guard: 'SETTINGS_COPY_TOOL' },
+      { path: '/skill-central/*', spa: 'growguide-spa', flag: 'nvi-growguide' },
+      { path: '/sms-marketing/*', spa: 'sms-marketing-spa' },
+      { path: '/sous-chef-admin', spa: 'sous-chef-admin', guard: 'Toast user' },
+      { path: '/subscription/*', spa: 'membership-operator-spa', flag: 'mship-431-subscription-route-enabled' },
+      { path: '/support/*', spa: 'help-center-spa', flag: 'hlp-help-center-rollout' },
+      { path: '/surcharge/surcharge-config/*', spa: 'cc-surcharge-config-spa', flag: 'pmts-pricing-surcharging-enable-sign-up' },
+      { path: '/takeout-delivery-dashboard', spa: 'opd-takeout-and-delivery-spa', flag: 'pac-2395-smart-quote-reporting' },
+      { path: '/team', spa: 'team-overview-spa' },
+      { path: '/team-chat/app', spa: 'team-chat-spa', flag: 'ec-team-chat-spa-enabled' },
+      { path: '/team-chat/settings', spa: 'team-chat-config-spa' },
+      { path: '/testkitchen', spa: 'test-kitchen' },
+      { path: '/third-party-feedback-config/*', spa: 'third-party-feedback-config-spa', flag: 'ent-receipt-survey-qr-code' },
+      { path: '/third-party-mock', spa: 'third-party-mock-spa', flag: '3pod-3po-enable-third-party-mock', guard: 'Preprod/Dev only' },
+      { path: '/tipout/*', spa: 'tipout-spa', flag: 'ec-pcard-tipout-signup' },
+      { path: '/toast-account/bank-accounts/*', spa: 'bank-accounts-spa' },
+      { path: '/toast-account/billing-resolution', spa: 'food-court-spa', flag: 'bill-food-court' },
+      { path: '/toast-account/contacts/*', spa: 'contact-platform-spa', guard: 'USER_PERMISSIONS' },
+      { path: '/toast-account/invoice-hub/*', spa: 'customer-invoice-spa', flag: 'bill-new-customers-invoice-experience' },
+      { path: '/toast-account/merchant/*', spa: 'merchant-spa' },
+      { path: '/toast-account/pricing-updates', spa: 'food-court-spa' },
+      { path: '/toast-account/subscription-hub/*', spa: 'subscription-hub-spa', guard: 'FINANCIAL_ACCOUNTS or ENTITLEMENT permissions' },
+      { path: '/toast-checking/*', spa: 'high-yield-account-spa' },
+      { path: '/toastpay/', spa: 'toast-pay-admin-spa' },
+      { path: '/trial/*', spa: 'product-trial-spa' },
+      { path: '/ui-options/*', spa: 'ui-options-spa' },
+      { path: '/upsells/*', spa: 'menu-upsell-spa', flag: 'cac-upsell-experiment' },
+      { path: '/vendor-admin/*', spa: 'doc-vendor-admin-spa', flag: 'nvr-dps-admin-management' },
+      { path: '/voice-ordering/*', spa: 'voice-ordering-spa' },
+      { path: '/webhooks/*', spa: 'tpc-customer-api-access-spa', flag: 'tpc-customer-webhooks' },
+      { path: '/wholesale/*', spa: 'wholesale-spa', flag: 'whsl-wholesale-enabled' },
+    ]
+  },
+  'menu-price-spa': {
+    source: 'menu-price-spa/src/app/App.tsx',
+    routes: [
+      { path: '/manager', spa: 'menu-price-spa (root)' },
+      { path: '/manager/fullmenu', spa: 'FullMenuPage' },
+      { path: '/manager (index)', spa: 'PriceEditorPage' },
+      { path: '/manager/plu-ordering', spa: 'PLUOrderingPage' },
+      { path: '/manager/preview/:scheduleId', spa: 'ChangeSetEditorPage' },
+    ]
+  },
+  'ecomm-shop-spa': {
+    source: 'ecomm-shop-spa/src/constants/routes.ts',
+    routes: [
+      { path: '/customers/shop', spa: 'Shop home' },
+      { path: '/customers/shop/:category', spa: 'Catalog page' },
+      { path: '/customers/shop/:category/:sku', spa: 'Product page' },
+      { path: '/customers/shop/:category/:sku/replace', spa: 'Product replacement' },
+      { path: '/customers/shop/:category/:sku/upgrade', spa: 'Product upgrade' },
+      { path: '/customers/shop/checkout', spa: 'Checkout' },
+      { path: '/customers/shop/discovery', spa: 'Discovery' },
+      { path: '/customers/shop/orders', spa: 'Order history' },
+      { path: '/customers/shop/orders/:orderId', spa: 'Order detail' },
+      { path: '/customers/shop/thankyou', spa: 'Thank you page' },
+      { path: '/customers/shop/401', spa: 'Access denied' },
+      { path: '/customers/shop/404', spa: 'Page not found' },
+    ]
+  },
+  'spa-settings-management-layout': {
+    source: 'spa-settings-management-layout/src/components/Routing/routes.ts',
+    routes: [
+      { path: '/settings/my-account', spa: 'My Account' },
+      { path: '/settings/data-freshness', spa: 'Data Freshness' },
+      { path: '/settings/mandatory-mfa', spa: 'Mandatory MFA' },
+      { path: '/settings/teams/email-verification/*', spa: 'Email Verification' },
+      { path: '/settings/tipout/onboarding', spa: 'Tipout Onboarding' },
+      { path: '/settings/tipout/settings', spa: 'Tipout Settings' },
+    ]
+  },
+  'spa-toast-administration': {
+    source: 'spa-toast-administration (dynamic menu via GraphQL)',
+    routes: [
+      { path: '/toast/admin/*', spa: 'Dynamic admin menu (loaded via GraphQL adminMenu query)' },
+    ]
+  },
+};
+
+const DOMAINS = [
+  { path: '/restaurants/admin', label: '/restaurants/admin/*', color: var_blue },
+  { path: '/toast/admin', label: '/toast/admin/*', color: '#f0883e' },
+  { path: '/settings', label: '/settings', color: '#a371f7' },
+  { path: '/onboarding', label: '/onboarding/*', color: '#3fb950' },
+  { path: '/customers/shop', label: '/customers/shop/*', color: '#f778ba' },
+  { path: 'global', label: 'Global Widgets', color: '#39d2c0' },
+];
+
+function var_blue() { return '#58a6ff'; }
+
+const TYPE_COLORS = {
+  layout: '#58a6ff',
+  widget: '#3fb950',
+  runtime: '#6e7681',
+  devtool: '#6e7681',
+  redirect: '#f85149',
+};
+
+const TYPE_LABELS = {
+  layout: 'Layout',
+  widget: 'Widget',
+  runtime: 'Runtime',
+  devtool: 'Dev Tool',
+  redirect: 'Redirect',
+};
+
+// ============================================================
+// RENDER
+// ============================================================
+let selectedSpa = null;
+let activeFilter = 'all';
+let searchQuery = '';
+let currentView = 'tree';
+
+function renderStats() {
+  const el = document.getElementById('stats');
+  const layouts = spaData.filter(s => s.type === 'layout').length;
+  const widgets = spaData.filter(s => s.type === 'widget').length;
+  const ffGated = spaData.filter(s => s.featureFlag).length;
+  const guarded = spaData.filter(s => s.guard).length;
+  const runtimes = spaData.filter(s => s.type === 'runtime' || s.type === 'devtool').length;
+  const totalChildRoutes = Object.values(childRouteData).reduce((sum, cr) => sum + cr.routes.length, 0);
+  const uniqueChildSpas = new Set();
+  Object.values(childRouteData).forEach(cr => cr.routes.forEach(r => uniqueChildSpas.add(r.spa.split(' / ')[0].split(' (')[0])));
+  el.innerHTML = `
+    <div class="stat"><span class="dot" style="background:#58a6ff"></span><span class="count">${layouts}</span> Layouts</div>
+    <div class="stat"><span class="dot" style="background:#3fb950"></span><span class="count">${widgets}</span> Widgets</div>
+    <div class="stat"><span class="dot" style="background:#6e7681"></span><span class="count">${runtimes}</span> Runtime/Dev</div>
+    <div class="stat"><span class="dot" style="background:#d29922"></span><span class="count">${ffGated}</span> Feature-flagged</div>
+    <div class="stat"><span class="dot" style="background:#bc8cff"></span><span class="count">${guarded}</span> Guarded</div>
+    <div class="stat"><span class="dot" style="background:#f85149"></span><span class="count">1</span> Redirect</div>
+    <div class="stat" style="border-left:1px solid var(--border);padding-left:16px"><span class="dot" style="background:#f0883e"></span><span class="count">${totalChildRoutes}</span> Internal Routes</div>
+    <div class="stat"><span class="dot" style="background:#f778ba"></span><span class="count">${uniqueChildSpas.size}</span> Child SPAs</div>
+  `;
+}
+
+function matchesFilter(spa) {
+  if (activeFilter === 'all') return true;
+  if (activeFilter === 'layout') return spa.type === 'layout';
+  if (activeFilter === 'widget') return spa.type === 'widget';
+  if (activeFilter === 'ff') return !!spa.featureFlag;
+  if (activeFilter === 'guarded') return !!spa.guard;
+  return true;
+}
+
+function matchesSearch(spa) {
+  if (!searchQuery) return true;
+  const q = searchQuery.toLowerCase();
+  const directMatch = spa.name.toLowerCase().includes(q) ||
+    spa.routes.some(r => r.toLowerCase().includes(q)) ||
+    (spa.featureFlag && spa.featureFlag.toLowerCase().includes(q)) ||
+    (spa.description && spa.description.toLowerCase().includes(q));
+  if (directMatch) return true;
+  // Also search child routes
+  const cr = childRouteData[spa.name];
+  if (cr) {
+    return cr.routes.some(r =>
+      r.path.toLowerCase().includes(q) ||
+      r.spa.toLowerCase().includes(q) ||
+      (r.flag && r.flag.toLowerCase().includes(q))
+    );
+  }
+  return false;
+}
+
+function getDomainColor(domainPath) {
+  if (domainPath === '/restaurants/admin') return '#58a6ff';
+  if (domainPath === '/toast/admin') return '#f0883e';
+  if (domainPath === '/settings') return '#a371f7';
+  if (domainPath === '/onboarding') return '#3fb950';
+  if (domainPath === '/customers/shop') return '#f778ba';
+  if (domainPath === 'global') return '#39d2c0';
+  return '#6e7681';
+}
+
+function renderTree() {
+  const panel = document.getElementById('treePanel');
+  panel.innerHTML = '';
+
+  const domainGroups = {};
+  const domainOrder = ['/restaurants/admin', '/toast/admin', '/settings', '/onboarding', '/customers/shop', 'global'];
+  domainOrder.forEach(d => domainGroups[d] = []);
+
+  spaData.forEach(spa => {
+    const key = domainOrder.includes(spa.domain) ? spa.domain : 'global';
+    domainGroups[key].push(spa);
+  });
+
+  const domainLabels = {
+    '/restaurants/admin': '/restaurants/admin/*',
+    '/toast/admin': '/toast/admin/*',
+    '/settings': '/settings',
+    '/onboarding': '/onboarding/*',
+    '/customers/shop': '/customers/shop/*',
+    'global': 'Global Widgets & Overlays',
+  };
+
+  domainOrder.forEach(domain => {
+    const spas = domainGroups[domain];
+    if (!spas.length) return;
+
+    const visibleSpas = spas.filter(s => matchesFilter(s) && matchesSearch(s));
+
+    const section = document.createElement('div');
+    section.className = 'domain-section';
+
+    const header = document.createElement('div');
+    header.className = 'domain-header expanded';
+    const color = getDomainColor(domain);
+    header.innerHTML = `
+      <span class="chevron">&#9654;</span>
+      <span class="path">${domainLabels[domain]}</span>
+      <span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${visibleSpas.length} SPA${visibleSpas.length !== 1 ? 's' : ''}</span>
+    `;
+
+    const children = document.createElement('div');
+    children.className = 'domain-children visible';
+
+    header.addEventListener('click', () => {
+      header.classList.toggle('expanded');
+      children.classList.toggle('visible');
+    });
+
+    // Sort: redirect first, then layouts, widgets, runtime/dev
+    const typeOrder = { redirect: 0, layout: 1, widget: 2, runtime: 3, devtool: 4 };
+    const sorted = [...spas].sort((a, b) => (typeOrder[a.type] || 9) - (typeOrder[b.type] || 9) || a.regOrder - b.regOrder);
+
+    // Group by type for sub-headers within the domain
+    let lastType = null;
+    sorted.forEach(spa => {
+      const visible = matchesFilter(spa) && matchesSearch(spa);
+      const isSearchMatch = searchQuery && matchesSearch(spa);
+
+      if (visible && spa.type !== lastType) {
+        const sub = document.createElement('div');
+        sub.className = 'subsection';
+        sub.textContent = spa.type === 'redirect' ? 'Redirects' : TYPE_LABELS[spa.type] + 's';
+        children.appendChild(sub);
+        lastType = spa.type;
+      }
+
+      const node = document.createElement('div');
+      node.className = 'route-node' + (visible ? '' : ' hidden') + (isSearchMatch ? ' search-match' : '') + (selectedSpa === spa.name ? ' selected' : '');
+      node.dataset.spa = spa.name;
+
+      let tags = '';
+      let ffDisplay = '';
+      if (spa.featureFlag) {
+        tags += `<span class="tag tag-ff">FF</span>`;
+        ffDisplay = `<span class="tag-ff-name" title="${spa.featureFlag}">${spa.featureFlag.substring(0, 28)}${spa.featureFlag.length > 28 ? '…' : ''}</span>`;
+      }
+      if (spa.guard) tags += `<span class="tag tag-guard">Guard</span>`;
+      if (spa.conditional) tags += `<span class="tag tag-conditional">Cond</span>`;
+      if (spa.type === 'devtool') tags += `<span class="tag tag-dev">Dev</span>`;
+      if (spa.type === 'redirect') tags += `<span class="tag tag-redirect">301</span>`;
+
+      const hasChildRoutes = !!childRouteData[spa.name];
+      const childCount = hasChildRoutes ? childRouteData[spa.name].routes.length : 0;
+      const expandBtn = hasChildRoutes ? `<span class="expand-child-btn" data-expand="${spa.name}">${childCount} routes</span>` : '';
+
+      const primaryRoute = spa.routes[0];
+      node.innerHTML = `
+        <span class="type-indicator" style="background:${TYPE_COLORS[spa.type]}"></span>
+        <span class="spa-name">${spa.name}</span>
+        <span class="tags-container">${tags}${ffDisplay}${expandBtn}</span>
+        <span class="route-path">${primaryRoute.length > 35 ? primaryRoute.substring(0, 35) + '...' : primaryRoute}</span>
+      `;
+
+      node.addEventListener('click', (e) => {
+        if (e.target.classList.contains('expand-child-btn')) {
+          e.stopPropagation();
+          const inlineEl = node.nextElementSibling;
+          if (inlineEl && inlineEl.classList.contains('child-routes-inline')) {
+            inlineEl.classList.toggle('visible');
+          }
+          return;
+        }
+        selectSpa(spa);
+      });
+      children.appendChild(node);
+
+      // Add inline expandable child routes
+      if (hasChildRoutes && visible) {
+        const inlineDiv = document.createElement('div');
+        inlineDiv.className = 'child-routes-inline';
+        const cr = childRouteData[spa.name];
+        const q = searchQuery.toLowerCase();
+        cr.routes.forEach(r => {
+          const highlight = searchQuery && (r.path.toLowerCase().includes(q) || r.spa.toLowerCase().includes(q) || (r.flag && r.flag.toLowerCase().includes(q)));
+          const row = document.createElement('div');
+          row.className = 'child-route-inline' + (highlight ? ' search-highlight' : '');
+          let metaTags = '';
+          if (r.flag) metaTags += `<span class="tag tag-ff" style="font-size:9px;padding:0 4px">FF</span><span class="tag-ff-name" title="${r.flag}" style="font-size:9px">${r.flag.substring(0, 32)}${r.flag.length > 32 ? '…' : ''}</span>`;
+          if (r.guard) metaTags += `<span class="tag tag-guard" style="font-size:9px;padding:0 4px" title="${r.guard}">G</span><span style="font-size:9px;color:var(--purple);margin-left:2px" title="${r.guard}">${r.guard.substring(0, 24)}${r.guard.length > 24 ? '…' : ''}</span>`;
+          row.innerHTML = `<span class="crpath">${r.path}</span><span style="color:var(--text-muted)">→</span><span class="crspa">${r.spa}</span>${metaTags}`;
+          inlineDiv.appendChild(row);
+        });
+        children.appendChild(inlineDiv);
+        // Auto-expand if search matches child routes
+        if (searchQuery && cr.routes.some(r =>
+          r.path.toLowerCase().includes(q) || r.spa.toLowerCase().includes(q) || (r.flag && r.flag.toLowerCase().includes(q))
+        )) {
+          inlineDiv.classList.add('visible');
+        }
+      }
+    });
+
+    section.appendChild(header);
+    section.appendChild(children);
+    panel.appendChild(section);
+  });
+}
+
+function selectSpa(spa) {
+  selectedSpa = spa.name;
+
+  // Update selected state in tree
+  document.querySelectorAll('.route-node').forEach(n => {
+    n.classList.toggle('selected', n.dataset.spa === spa.name);
+  });
+
+  renderDetail(spa);
+}
+
+function renderDetail(spa) {
+  const panel = document.getElementById('detailPanel');
+
+  let html = `<div class="detail-header">
+    <div class="spa-name">${spa.name}</div>
+    <div class="spa-type">
+      <span class="dot" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:${TYPE_COLORS[spa.type]}"></span>
+      <span style="color:${TYPE_COLORS[spa.type]}">${TYPE_LABELS[spa.type]}</span>
+      <span style="color:var(--text-muted);margin-left:8px">Registration #${spa.regOrder}</span>
+    </div>
+  </div>`;
+
+  // Description
+  html += `<div class="detail-section">
+    <h3>Description</h3>
+    <div class="detail-info">${spa.description}</div>
+  </div>`;
+
+  // Routes
+  html += `<div class="detail-section">
+    <h3>Active Routes</h3>
+    <div class="detail-routes">${spa.routes.map(r => `<div class="detail-route">${r}</div>`).join('')}</div>
+  </div>`;
+
+  // Feature Flag
+  if (spa.featureFlag) {
+    html += `<div class="detail-section">
+      <h3>Feature Flag</h3>
+      <div class="detail-info"><code>${spa.featureFlag}</code></div>
+    </div>`;
+  }
+
+  // Guard
+  if (spa.guard) {
+    html += `<div class="detail-section">
+      <h3>Guard Condition</h3>
+      <div class="detail-info">${spa.guard}</div>
+    </div>`;
+  }
+
+  // Conditional
+  if (spa.conditional) {
+    html += `<div class="detail-section">
+      <h3>Conditional With</h3>
+      <div class="detail-info">Mutually exclusive with <code>${spa.conditional}</code></div>
+    </div>`;
+  }
+
+  // Redirect
+  if (spa.redirectTo) {
+    html += `<div class="detail-section">
+      <h3>Redirects To</h3>
+      <div class="detail-routes"><div class="detail-route">${spa.redirectTo}</div></div>
+    </div>`;
+  }
+
+  // Exclusions
+  if (spa.exclusions && spa.exclusions.length) {
+    html += `<div class="detail-section">
+      <h3>Route Exclusions</h3>
+      <div class="detail-exclusions">${spa.exclusions.map(e => `<div class="exclusion-item">${e}</div>`).join('')}</div>
+    </div>`;
+  }
+
+  // Child routes
+  const cr = childRouteData[spa.name];
+  if (cr) {
+    html += `<div class="child-routes-section">
+      <div class="child-routes-header expanded" onclick="this.classList.toggle('expanded');this.nextElementSibling.classList.toggle('visible')">
+        <span class="chevron">&#9654;</span>
+        Internal Routes (${cr.routes.length})
+        <span class="source-badge">via Sourcegraph</span>
+      </div>
+      <div class="child-routes-list visible">`;
+    cr.routes.forEach(r => {
+      let meta = '';
+      if (r.flag) meta += `<span class="tag tag-ff" style="font-size:9px;padding:0 4px">FF</span><code style="font-size:9px;color:var(--orange);margin-left:2px">${r.flag}</code>`;
+      if (r.guard) meta += `<span class="tag tag-guard" style="font-size:9px;padding:0 4px">G</span><span style="font-size:9px;color:var(--purple);margin-left:2px">${r.guard}</span>`;
+      html += `<div class="child-route-row">
+        <span class="child-route-path" title="${r.path}">${r.path}</span>
+        <span class="child-route-arrow">→</span>
+        <span class="child-route-spa" title="${r.spa}">${r.spa}</span>
+        ${meta ? `<div style="margin-top:2px;margin-left:12px">${meta}</div>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Source file
+  html += `<div class="detail-section">
+    <h3>Source</h3>
+    <div class="detail-file">${spa.file}</div>
+    ${cr ? `<div class="detail-file" style="margin-top:4px;color:#f0883e">${cr.source}</div>` : ''}
+  </div>`;
+
+  panel.innerHTML = html;
+}
+
+// ============================================================
+// GRAPH VIEW
+// ============================================================
+function groupChildRoutesByPrefix(routes) {
+  const groups = {};
+  routes.forEach(r => {
+    const parts = r.path.replace(/^\//, '').split('/');
+    const prefix = parts[0] || 'root';
+    if (!groups[prefix]) groups[prefix] = [];
+    groups[prefix].push(r);
+  });
+  return groups;
+}
+
+function renderGraph() {
+  const panel = document.getElementById('treePanel');
+  panel.innerHTML = '<div class="graph-container" id="graphContainer"></div>';
+
+  const container = document.getElementById('graphContainer');
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  const filteredSpas = spaData.filter(s => matchesFilter(s) && matchesSearch(s));
+
+  // Build hierarchy: root -> domain -> SPA -> prefix group -> child routes
+  const rootData = { name: 'wex-banquet-root', children: [] };
+
+  const domainOrder = ['/restaurants/admin', '/toast/admin', '/settings', '/onboarding', '/customers/shop', 'global'];
+  const domainLabels = {
+    '/restaurants/admin': '/restaurants/admin',
+    '/toast/admin': '/toast/admin',
+    '/settings': '/settings',
+    '/onboarding': '/onboarding',
+    '/customers/shop': '/customers/shop',
+    'global': 'Global Widgets',
+  };
+
+  const domainMap = {};
+  domainOrder.forEach(d => {
+    domainMap[d] = { name: domainLabels[d], children: [], _domain: d, _level: 'domain' };
+    rootData.children.push(domainMap[d]);
+  });
+
+  filteredSpas.forEach(spa => {
+    const domain = domainOrder.includes(spa.domain) ? spa.domain : 'global';
+    const spaNode = {
+      name: spa.name,
+      _spa: spa,
+      _domain: domain,
+      _level: 'spa',
+      children: [],
+    };
+
+    const cr = childRouteData[spa.name];
+    if (cr && cr.routes.length > 0) {
+      const groups = groupChildRoutesByPrefix(cr.routes);
+      Object.entries(groups).forEach(([prefix, routes]) => {
+        const groupNode = {
+          name: '/' + prefix,
+          _level: 'group',
+          _domain: domain,
+          _routeCount: routes.length,
+          children: routes.map(r => ({
+            name: r.path,
+            _level: 'route',
+            _route: r,
+            _domain: domain,
+          })),
+        };
+        spaNode.children.push(groupNode);
+      });
+    }
+
+    domainMap[domain].children.push(spaNode);
+  });
+
+  rootData.children = rootData.children.filter(d => d.children.length > 0);
+
+  // Collapse helper: stash children into _children
+  function collapse(d) {
+    if (d.children && d.children.length) {
+      d._children = d.children;
+      d._children.forEach(collapse);
+      d.children = null;
+    }
+  }
+  function expand(d) {
+    if (d._children) {
+      d.children = d._children;
+      d._children = null;
+    }
+  }
+  function toggle(d) {
+    if (d.children) { d._children = d.children; d.children = null; }
+    else if (d._children) { d.children = d._children; d._children = null; }
+  }
+  function hasHiddenChildren(d) { return !!d._children; }
+  function totalDescendants(d) {
+    let count = 0;
+    (d._children || d.children || []).forEach(c => { count += 1 + totalDescendants(c); });
+    return count;
+  }
+
+  // Start collapsed at SPA level (domains + SPAs visible, groups/routes hidden)
+  rootData.children.forEach(domain => {
+    domain.children.forEach(spa => {
+      if (spa.children && spa.children.length) collapse(spa);
+    });
+  });
+
+  const svg = d3.select(container).append('svg')
+    .attr('width', width)
+    .attr('height', height);
+
+  const g = svg.append('g');
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.05, 4])
+    .on('zoom', (e) => g.attr('transform', e.transform));
+  svg.call(zoom);
+
+  const duration = 400;
+  let i = 0;
+
+  function getNodeFill(d) {
+    if (d.depth === 0) return '#f0f6fc';
+    if (d.data._level === 'domain') return getDomainColor(d.data._domain);
+    if (d.data._level === 'spa' && d.data._spa) return TYPE_COLORS[d.data._spa.type];
+    if (d.data._level === 'group') return '#f0883e';
+    if (d.data._level === 'route') {
+      if (d.data._route?.flag) return '#d29922';
+      if (d.data._route?.guard) return '#bc8cff';
+      return '#39d2c0';
+    }
+    return '#6e7681';
+  }
+  function getNodeStroke(d) {
+    if (hasHiddenChildren(d.data)) return '#f0f6fc';
+    if (d.data._spa?.featureFlag) return '#d29922';
+    if (d.data._level === 'route' && d.data._route?.flag) return '#d29922';
+    if (d.data._level === 'route' && d.data._route?.guard) return '#bc8cff';
+    return 'none';
+  }
+  function getNodeRadius(d) {
+    switch(d.data._level) {
+      case 'domain': return 8;
+      case 'spa': return 6;
+      case 'group': return 4;
+      case 'route': return 2.5;
+      default: return 10;
+    }
+  }
+  function getNodeLabel(d) {
+    if (d.depth === 0) return 'wex-banquet-root';
+    const hidden = d.data._children ? d.data._children.length : 0;
+    if (d.data._level === 'route') {
+      const r = d.data._route;
+      if (!r) return d.data.name;
+      let label = `${r.path} → ${r.spa}`;
+      if (r.flag) label += ` [FF: ${r.flag.length > 24 ? r.flag.substring(0, 24) + '…' : r.flag}]`;
+      if (r.guard) label += ` [G: ${r.guard.length > 20 ? r.guard.substring(0, 20) + '…' : r.guard}]`;
+      return label;
+    }
+    if (d.data._level === 'group') {
+      const allRoutes = d.data._children || d.data.children || [];
+      const routeCount = d.data._routeCount;
+      const flagged = allRoutes.filter(c => (c.data || c)._route?.flag || (c.data || c)?._route?.flag).length;
+      let label = `${d.data.name} (${routeCount}${flagged > 0 ? ', ' + flagged + ' FF' : ''})`;
+      if (hidden) label += ' +';
+      return label;
+    }
+    if (d.data._level === 'spa' && hidden) {
+      const desc = totalDescendants(d.data);
+      return `${d.data.name} [${desc} routes]`;
+    }
+    if (d.data._level === 'domain' && hidden) return `${d.data.name} +`;
+    return d.data.name;
+  }
+  function getLabelSize(d) {
+    switch(d.data._level) {
+      case 'route': return '7px';
+      case 'group': return '8px';
+      case 'spa': return '9px';
+      case 'domain': return '11px';
+      default: return '12px';
+    }
+  }
+  function getLabelColor(d) {
+    if (d.depth === 0) return '#f0f6fc';
+    if (d.data._level === 'domain') return '#f0f6fc';
+    if (d.data._level === 'spa') return '#c9d1d9';
+    if (d.data._level === 'group') return '#f0883e';
+    if (d.data._level === 'route') return '#8b949e';
+    return '#c9d1d9';
+  }
+  function getLinkStroke(d) {
+    if (d.target.data._level === 'route') return 'rgba(57,210,192,0.2)';
+    if (d.target.data._level === 'group') return 'rgba(240,136,62,0.3)';
+    return 'var(--border)';
+  }
+
+  function update(source) {
+    const hierarchy = d3.hierarchy(rootData);
+    const leafCount = hierarchy.leaves().length;
+    const dynamicHeight = Math.max(height, leafCount * 18);
+
+    const treeLayout = d3.tree()
+      .size([dynamicHeight, width - 300])
+      .separation((a, b) => a.parent === b.parent ? 1 : 1.4);
+    treeLayout(hierarchy);
+
+    const treeNodes = hierarchy.descendants();
+    const treeLinks = hierarchy.links();
+
+    // Assign unique ids
+    treeNodes.forEach(d => { d.id = d.id || ++i; });
+
+    // --- LINKS ---
+    const link = g.selectAll('.graph-link')
+      .data(treeLinks, d => d.target.id);
+
+    const linkEnter = link.enter().append('path')
+      .attr('class', 'graph-link')
+      .attr('d', () => {
+        const o = { x: source.x0 || source.x, y: source.y0 || source.y };
+        return d3.linkHorizontal().x(d => d.y).y(d => d.x)({source: o, target: o});
+      })
+      .attr('stroke', d => getLinkStroke(d))
+      .attr('stroke-width', d => d.target.data._level === 'route' ? 0.5 : 1)
+      .attr('fill', 'none');
+
+    const linkUpdate = linkEnter.merge(link);
+    linkUpdate.transition().duration(duration)
+      .attr('d', d3.linkHorizontal().x(d => d.y).y(d => d.x))
+      .attr('stroke', d => getLinkStroke(d));
+
+    link.exit().transition().duration(duration)
+      .attr('d', () => {
+        const o = { x: source.x, y: source.y };
+        return d3.linkHorizontal().x(d => d.y).y(d => d.x)({source: o, target: o});
+      })
+      .remove();
+
+    // --- NODES ---
+    const node = g.selectAll('.graph-node')
+      .data(treeNodes, d => d.id);
+
+    const nodeEnter = node.enter().append('g')
+      .attr('class', 'graph-node')
+      .attr('transform', () => `translate(${source.y0 || source.y},${source.x0 || source.x})`)
+      .style('opacity', 0);
+
+    nodeEnter.append('circle')
+      .attr('r', 0)
+      .attr('fill', d => getNodeFill(d))
+      .attr('stroke', d => getNodeStroke(d))
+      .attr('stroke-width', 1.5);
+
+    nodeEnter.append('text')
+      .attr('dy', '0.31em')
+      .attr('font-family', "'SF Mono', 'Fira Code', monospace")
+      .attr('paint-order', 'stroke')
+      .attr('stroke', 'var(--bg)')
+      .attr('stroke-width', 3);
+
+    // Click handler on enter
+    nodeEnter.on('click', (e, d) => {
+      e.stopPropagation();
+      // Toggle collapse
+      if (d.data.children || d.data._children) {
+        toggle(d.data);
+        update(d);
+      }
+      // Also select SPA in detail panel
+      if (d.data._spa) selectSpa(d.data._spa);
+    })
+    .style('cursor', d => (d.data.children || d.data._children || d.data._spa) ? 'pointer' : 'default');
+
+    // Merge enter + update
+    const nodeUpdate = nodeEnter.merge(node);
+
+    nodeUpdate.transition().duration(duration)
+      .attr('transform', d => `translate(${d.y},${d.x})`)
+      .style('opacity', 1);
+
+    nodeUpdate.select('circle').transition().duration(duration)
+      .attr('r', d => getNodeRadius(d))
+      .attr('fill', d => hasHiddenChildren(d.data) ? 'var(--surface2)' : getNodeFill(d))
+      .attr('stroke', d => getNodeStroke(d))
+      .attr('stroke-width', 1.5);
+
+    nodeUpdate.select('text').transition().duration(duration)
+      .attr('x', d => (d.children || d.data._children) ? -10 : 8)
+      .attr('text-anchor', d => (d.children || d.data._children) ? 'end' : 'start')
+      .attr('font-size', d => getLabelSize(d))
+      .attr('fill', d => getLabelColor(d))
+      .tween('text', function(d) {
+        const label = getNodeLabel(d);
+        return () => { this.textContent = label; };
+      });
+
+    // Exit
+    const nodeExit = node.exit().transition().duration(duration)
+      .attr('transform', () => `translate(${source.y},${source.x})`)
+      .style('opacity', 0)
+      .remove();
+
+    nodeExit.select('circle').attr('r', 0);
+
+    // Stash old positions for transition
+    treeNodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+  }
+
+  // Initial render
+  const initHierarchy = d3.hierarchy(rootData);
+  const initLeafCount = initHierarchy.leaves().length;
+  const initHeight = Math.max(height, initLeafCount * 18);
+  const initialScale = Math.min(0.6, height / initHeight);
+  svg.call(zoom.transform, d3.zoomIdentity.translate(160, 30).scale(initialScale));
+
+  update({ x: height / 2, y: 0, x0: height / 2, y0: 0 });
+}
+
+// ============================================================
+// EVENT HANDLERS
+// ============================================================
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeFilter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+    if (currentView === 'tree') renderTree();
+    else renderGraph();
+  });
+});
+
+document.getElementById('search').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  if (currentView === 'tree') renderTree();
+  else renderGraph();
+});
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentView = btn.dataset.view;
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b === btn));
+    if (currentView === 'tree') renderTree();
+    else renderGraph();
+  });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderStats();
+renderTree();
+</script>
+</body>
+</html>
